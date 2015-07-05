@@ -16,16 +16,14 @@ class Folder
 
     @expansionState ?= {}
     @expansionState.isExpanded ?= false
+    @subscribeToMailFolder()
 
-  destroy: ->
-    @subscriptions.dispose()
-    @emitter.emit('did-destroy')
+  subscribeToMailFolder: ->
+    @subscriptions.add @mailFolder.onDidAddChildren (children) =>
+      @reload()
 
-  onDidDestroy: (callback) ->
-    @emitter.on('did-destroy', callback)
-
-  onDidStatusChange: (callback) ->
-    @emitter.on('did-status-change', callback)
+    @subscriptions.add @mailFolder.onDidRemoveChildren (children) =>
+      @reload()
 
   onDidAddEntries: (callback) ->
     @emitter.on('did-add-entries', callback)
@@ -59,7 +57,6 @@ class Folder
     entriesRemoved = false
     for name, entry of removedEntries
       entriesRemoved = true
-      entry.destroy()
       delete @entries[name]
       delete @expansionState[name]
     @emitter.emit('did-remove-entries', removedEntries) if entriesRemoved
@@ -72,14 +69,11 @@ class Folder
   collapse: ->
     @expansionState.isExpanded = false
     @expansionState = @serializeExpansionState()
-    @unwatch()
 
   # Public: Expand this directory, load its children, and start watching it for
   # changes.
   expand: ->
     @expansionState.isExpanded = true
-    @reload()
-    @watch()
 
   serializeExpansionState: ->
     expansionState = {}
